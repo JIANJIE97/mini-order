@@ -28,3 +28,14 @@ pagehelper:   #分页器配置
 #配置通用分页器
 
 
+wx-config: #自定义的属性和值
+  img_url_prefix: http://localhost:8888/img
+  wx_app_id: wx53ee16a091421f41
+  wx_app_secret: fcea20047c797a01c2b63280f8492c77
+  wx_login_url: https://api.weixin.qq.com/sns/jscode2session?
+  token_salt: HHsTieBU377mJtKr
+  token_expire: 7200
+
+
+
+

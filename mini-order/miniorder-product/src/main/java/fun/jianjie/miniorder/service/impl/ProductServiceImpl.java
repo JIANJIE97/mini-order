@@ -1,5 +1,6 @@
 package fun.jianjie.miniorder.service.impl;
 
+import fun.jianjie.miniorder.config.WxProperties;
 import fun.jianjie.miniorder.dao.ProductDao;
 import fun.jianjie.miniorder.domain.Product;
 import fun.jianjie.miniorder.service.ProductService;
@@ -7,6 +8,7 @@ import fun.jianjie.miniorder.vo.DetailImageVo;
 import fun.jianjie.miniorder.vo.ImageVo;
 import fun.jianjie.miniorder.vo.ProductVo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -14,10 +16,13 @@ import java.util.List;
 
 
 @Service
+@EnableConfigurationProperties(WxProperties.class)
 public class ProductServiceImpl implements ProductService {
-    private static final String IMG_URL_PREFIX = "http://localhost:8888/img";
     @Resource
     private ProductDao productDao;
+
+    @Autowired
+    private WxProperties wxProperties;
 
     /**
      * 根据分类id查看商品
@@ -44,14 +49,14 @@ public class ProductServiceImpl implements ProductService {
         //为主图片添加路径前缀
         ProductVo productVo= productDao.findProductById(id);
         String URL = productVo.getMain_img_url();
-        productVo.setMain_img_url(IMG_URL_PREFIX+URL);
+        productVo.setMain_img_url(wxProperties.getImg_url_prefix()+URL);
 
         //为详细图片添加路径前缀
         List<DetailImageVo> imgs = productVo.getImgs();
         for (DetailImageVo img : imgs) {
             ImageVo img_url_obj = img.getImg_url();
             String url = img_url_obj.getUrl();
-            img_url_obj.setUrl(IMG_URL_PREFIX+url);
+            img_url_obj.setUrl(wxProperties.getImg_url_prefix()+url);
         }
         return productVo;
     }

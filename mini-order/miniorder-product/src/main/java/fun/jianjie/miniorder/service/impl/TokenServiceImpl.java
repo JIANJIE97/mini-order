@@ -1,6 +1,7 @@
 package fun.jianjie.miniorder.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import fun.jianjie.miniorder.config.WxProperties;
 import fun.jianjie.miniorder.domain.User;
 import fun.jianjie.miniorder.enumpackage.ScopeEnum;
 import fun.jianjie.miniorder.exception.WeChatException;
@@ -10,10 +11,12 @@ import fun.jianjie.miniorder.utils.Md5Util;
 import fun.jianjie.miniorder.utils.RedisUtil;
 import fun.jianjie.miniorder.utils.UuidUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,20 +24,14 @@ import java.util.concurrent.TimeUnit;
 
 
 @Service
+@EnableConfigurationProperties(WxProperties.class)
 public class TokenServiceImpl implements TokenService {
-    /*GET
-    https://api.weixin.qq.com/sns/jscode2session?
-    appid=APPID
-    &secret=SECRET
-    &js_code=JSCODE
-    &grant_type=authorization_code
-    */
-    private String WX_APP_ID = "wx53ee16a091421f41";
+    /*private String WX_APP_ID = "wx53ee16a091421f41";
     private String WX_APP_SECRET = "fcea20047c797a01c2b63280f8492c77";
     private String WX_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session?";
     private String TOKEN_SALT = "HHsTieBU377mJtKr";
-    private long TOKEN_EXPIRE = 7200;
-
+    private long TOKEN_EXPIRE = 7200;*/
+    private static String WX_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session?";
     @Autowired
     private RestTemplate restTemplate;
     @Autowired
@@ -42,9 +39,10 @@ public class TokenServiceImpl implements TokenService {
     @Autowired
     private RedisTemplate redisTemplate;
 
-    public TokenServiceImpl() {
+    @Autowired
+    private WxProperties wxProperties;
 
-    }
+
 
     /**
      * 初始化访问接口的地址
@@ -53,9 +51,9 @@ public class TokenServiceImpl implements TokenService {
     public void initParameter(String code) {
         WX_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session?";
 
-        StringBuilder tempStr = new StringBuilder(WX_LOGIN_URL).
-                append("appid=" + WX_APP_ID).
-                append("&secret=" + WX_APP_SECRET).
+        StringBuilder tempStr = new StringBuilder(wxProperties.getWx_login_url()).
+                append("appid=" + wxProperties.getWx_app_id()).
+                append("&secret=" + wxProperties.getWx_app_secret()).
                 append("&js_code=" + code).
                 append("&grant_type=authorization_code");
          WX_LOGIN_URL = tempStr.toString();
@@ -146,9 +144,9 @@ public class TokenServiceImpl implements TokenService {
          */
 
         try {
-            String token = Md5Util.encodeByMd5(UuidUtil.getUuid() + System.currentTimeMillis() + TOKEN_SALT);
+            String token = Md5Util.encodeByMd5(UuidUtil.getUuid() + System.currentTimeMillis() + wxProperties.getToken_salt());
             redisTemplate.opsForHash().putAll(token, cacheValue);
-            redisTemplate.boundValueOps(token).expire(TOKEN_EXPIRE, TimeUnit.SECONDS);
+            redisTemplate.boundValueOps(token).expire(wxProperties.getToken_expire(), TimeUnit.SECONDS);
             System.out.println(redisTemplate.opsForHash().entries(token));
             return token;
         } catch (Exception e) {

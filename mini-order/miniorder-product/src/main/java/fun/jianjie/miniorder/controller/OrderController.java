@@ -3,12 +3,10 @@ package fun.jianjie.miniorder.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
+import fun.jianjie.miniorder.exception.CartParameterException;
 import fun.jianjie.miniorder.service.OrderService;
 import fun.jianjie.miniorder.service.TokenService;
-import fun.jianjie.miniorder.vo.CartVo;
-import fun.jianjie.miniorder.vo.OrderResultVo;
-import fun.jianjie.miniorder.vo.OrderVo;
-import fun.jianjie.miniorder.vo.SummaryOrderVo;
+import fun.jianjie.miniorder.vo.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,17 +67,36 @@ public class OrderController {
     @PostMapping("order")
     @Transactional(rollbackFor=Exception.class)
     public ResponseEntity<?> placeOrder(@RequestHeader("token") String token, @RequestBody String cartProducts) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        CartVo cartVo = objectMapper.readValue(cartProducts, CartVo.class);
 
 
         //数据校验
+        ObjectMapper objectMapper = new ObjectMapper();
+        CartVo cartVo = null;
+        try {
+            cartVo = objectMapper.readValue(cartProducts, CartVo.class);
+        }catch (Exception e){
+            throw new CartParameterException("参数格式错误，请修改参数的名称符合规范");
+        }
+        System.out.println(cartVo);
+        if(cartVo == null){
+            throw new CartParameterException("购物车数据不能为空");
+        }
+        for (CartProductVo cartProductVo : cartVo.getProducts()) {
+
+            if(cartProductVo.getCount() == null || cartProductVo.getCount() <= 0){
+                throw new CartParameterException("参数错误，商品数量不能为空或者小于0");
+            }
+            if(cartProductVo.getProduct_id() == null || cartProductVo.getProduct_id() <= 0){
+                throw new CartParameterException("参数错误，商品id不能为空或者小于0");
+            }
+        }
+
+
 
         //获取用户的uid
         Integer uid = Integer.parseInt(tokenService.getCurrentUid(token, "uid").toString());
 
         Object object = orderService.place(uid,cartVo);
-
         return ResponseEntity.ok(object);
     }
 }

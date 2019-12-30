@@ -2,6 +2,7 @@ package fun.jianjie.miniorder.service.impl;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageInfo;
+import fun.jianjie.miniorder.config.WxProperties;
 import fun.jianjie.miniorder.dao.OrderDao;
 import fun.jianjie.miniorder.dao.ProductDao;
 import fun.jianjie.miniorder.domain.Order;
@@ -18,9 +19,11 @@ import fun.jianjie.miniorder.utils.DateAndTimeStampUtil;
 import fun.jianjie.miniorder.utils.OrderIDUtil;
 import fun.jianjie.miniorder.vo.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -30,8 +33,8 @@ import java.util.List;
 
 
 @Service
+@EnableConfigurationProperties(WxProperties.class)
 public class OrderServiceImpl implements OrderService {
-    private static final String IMG_URL_PREFIX = "http://localhost:8888/img";
 
     @Resource
     private OrderDao orderDao;
@@ -49,11 +52,14 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private OrderProductService orderProductService;
+    @Autowired
+    private WxProperties wxProperties;
 
-    private Integer uid;
-    private CartVo cartVo;
-    private List<ProductDTO> products;
-    private List<OrderProductDTO> orderProducts;
+
+    private ThreadLocal<Integer> uidTL = new ThreadLocal<>();
+    private ThreadLocal<CartVo> cartVoTL = new ThreadLocal<>();
+    private ThreadLocal<List<ProductDTO>> productsTL = new ThreadLocal<>();
+    private ThreadLocal<List<OrderProductDTO>> orderProductsTL = new ThreadLocal<>();
 
 
     /**
@@ -82,8 +88,9 @@ public class OrderServiceImpl implements OrderService {
         }else{
             List<OrderVo> result = pageInfo.getList();
             for (OrderVo orderVo : result) {
-                orderVo.setSnap_img(IMG_URL_PREFIX + orderVo.getSnap_img());
+                orderVo.setSnap_img(wxProperties.getImg_url_prefix() + orderVo.getSnap_img());
             }
+
             summaryOrderVo.setData(result);
             summaryOrderVo.setCurrent_page(pageInfo.getPageNum());
         }
@@ -110,7 +117,7 @@ public class OrderServiceImpl implements OrderService {
 
 
 
-        orderVo.setSnap_img(IMG_URL_PREFIX+orderVo.getSnap_img());
+        orderVo.setSnap_img(wxProperties.getImg_url_prefix()+orderVo.getSnap_img());
         //System.out.println("orderVo前:"+orderVo);
 
         //存在三个字段需要业务处理(haveStock、totalPrice、Main_img_url)
@@ -148,7 +155,7 @@ public class OrderServiceImpl implements OrderService {
             //totalPrice
             orderProduct.setTotalPrice(count.multiply(price));
             //Main_img_url
-            orderProduct.setMain_img_url(IMG_URL_PREFIX+orderProduct.getMain_img_url());
+            orderProduct.setMain_img_url(wxProperties.getImg_url_prefix()+orderProduct.getMain_img_url());
         }
         //System.out.println(orderProduct);
         return orderProducts;
@@ -179,15 +186,15 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor=Exception.class)
     public Object place(Integer uid, CartVo cartVo) throws Exception {
         //初始化成员变量
-        this.uid = uid;
-        this.cartVo = cartVo;
+        this.uidTL.set(uid);
+        this.cartVoTL.set(cartVo);
         //根据购物车列表获取真实商品列表
-        this.products = getProductsByCartProduct();
+        this.productsTL.set(getProductsByCartProduct());;
         //根据购物车列表和真实商品列表获取订单商品列表
-        this.orderProducts = getOrderProductByCartProductAndProduct();
-        System.out.println("购物车数据："+this.cartVo.getProducts());
-        System.out.println("真实商品数据："+this.products);
-        System.out.println("订单商品数据："+this.orderProducts);
+        this.orderProductsTL.set(getOrderProductByCartProductAndProduct());
+        System.out.println("购物车数据："+this.cartVoTL.get().getProducts());
+        System.out.println("真实商品数据："+this.productsTL.get());
+        System.out.println("订单商品数据："+this.orderProductsTL.get());
 
         /**
          private Boolean pass;
@@ -227,7 +234,7 @@ public class OrderServiceImpl implements OrderService {
         OrderResultVo orderResultVo = new OrderResultVo();
         Order order = new Order();
         OrderProduct orderProduct = new OrderProduct();
-        order.setUser_id(this.uid);
+        order.setUser_id(this.uidTL.get());
         order.setOrder_no(OrderIDUtil.doInvoke());
         order.setTotal_price(orderSnapDTO.getOrderPrice());
         order.setTotal_count(orderSnapDTO.getTotalCount());
@@ -243,7 +250,7 @@ public class OrderServiceImpl implements OrderService {
         int num = orderDao.saveOrder(order);
         int oid = order.getId();
         System.out.println(oid);
-        OrderVo orderByOid = orderService.findOrderByOid(this.uid, oid);
+        OrderVo orderByOid = orderService.findOrderByOid(this.uidTL.get(), oid);
         if(orderByOid == null){
             throw new RuntimeException("生成订单项记录失败，没有对应的订单记录");
         }
@@ -258,7 +265,7 @@ public class OrderServiceImpl implements OrderService {
 
 
         //遍历订单商品插入订单项数据
-        for (OrderProductDTO product : this.orderProducts) {
+        for (OrderProductDTO product : this.orderProductsTL.get()) {
             orderProduct.setOrder_id(oid);
             orderProduct.setCount(product.getCount());
             orderProduct.setProduct_id(product.getId());
@@ -295,7 +302,7 @@ public class OrderServiceImpl implements OrderService {
      * ]
      */
     private List<ProductDTO> getProductsByCartProduct() {
-        List<CartProductVo> cartProductVos = this.cartVo.getProducts();
+        List<CartProductVo> cartProductVos = this.cartVoTL.get().getProducts();
 
         List<ProductDTO> productDTOS = new ArrayList<>();
         ProductDTO productDTO = null;
@@ -309,7 +316,7 @@ public class OrderServiceImpl implements OrderService {
             productDTO.setPrice(productVo.getPrice());
             productDTO.setStock(productVo.getStock());
             productDTO.setName(productVo.getName());
-            productDTO.setMain_img_url(IMG_URL_PREFIX+productVo.getMain_img_url());
+            productDTO.setMain_img_url(wxProperties.getImg_url_prefix()+productVo.getMain_img_url());
             productDTOS.add(productDTO);
         }
         return productDTOS;
@@ -342,8 +349,8 @@ public class OrderServiceImpl implements OrderService {
      * ]
      */
     public List<OrderProductDTO> getOrderProductByCartProductAndProduct(){
-        List<CartProductVo> cartVoProducts = this.cartVo.getProducts();
-        List<ProductDTO> products = this.products;
+        List<CartProductVo> cartVoProducts = this.cartVoTL.get().getProducts();
+        List<ProductDTO> products = this.productsTL.get();
 
         List<OrderProductDTO> orderProducts = new ArrayList<>();
         OrderProductDTO orderProductDTO = null;
@@ -394,7 +401,7 @@ public class OrderServiceImpl implements OrderService {
         //System.out.println(orderStatusDTO);
         BigDecimal totalPrice = new BigDecimal("0");
         Integer count = 0;
-        for (OrderProductDTO orderProduct : this.orderProducts) {
+        for (OrderProductDTO orderProduct : this.orderProductsTL.get()) {
             if(!orderProduct.getHaveStock()){
                 //库存不足
                 orderStatusDTO.setPass(false);
@@ -406,7 +413,7 @@ public class OrderServiceImpl implements OrderService {
         System.out.println("订单商品数量"+count);*/
         orderStatusDTO.setOrderPrice(totalPrice);
         orderStatusDTO.setTotalCount(count);
-        orderStatusDTO.setpStatusArray(this.orderProducts);
+        orderStatusDTO.setpStatusArray(this.orderProductsTL.get());
 
 
         return orderStatusDTO;
@@ -430,11 +437,11 @@ public class OrderServiceImpl implements OrderService {
         OrderSnapDTO orderSnapDTO = new OrderSnapDTO();
         orderSnapDTO.setOrderPrice(orderStatusDTO.getOrderPrice());
         orderSnapDTO.setTotalCount(orderStatusDTO.getTotalCount());
-        orderSnapDTO.setSnapAddress(addressService.findAddressByUid(this.uid));
+        orderSnapDTO.setSnapAddress(addressService.findAddressByUid(this.uidTL.get()));
 
         List<OrderProductDTO> orderProducts = orderStatusDTO.getpStatusArray();
         for (OrderProductDTO orderProduct : orderProducts) {
-            orderProduct.setMain_img_url(orderProduct.getMain_img_url().substring(IMG_URL_PREFIX.length()));
+            orderProduct.setMain_img_url(orderProduct.getMain_img_url().substring(wxProperties.getImg_url_prefix().length()));
         }
         System.out.println("订单商品快照："+orderProducts);
         orderSnapDTO.setOrderProductList(orderProducts);

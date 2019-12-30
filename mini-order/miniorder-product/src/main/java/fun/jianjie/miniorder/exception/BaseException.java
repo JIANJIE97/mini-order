@@ -1,6 +1,6 @@
 package fun.jianjie.miniorder.exception;
 
-public class BaseException extends Exception{
+public class BaseException extends RuntimeException{
     private Integer code;
     private String msg;
     private String url;
