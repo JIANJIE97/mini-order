@@ -64,6 +64,14 @@ public class OrderController {
         }
         return ResponseEntity.ok(orderVo);
     }
+
+    /**
+     * 生成订单
+     * @param token
+     * @param cartProducts
+     * @return
+     * @throws Exception
+     */
     @PostMapping("order")
     @Transactional(rollbackFor=Exception.class)
     public ResponseEntity<?> placeOrder(@RequestHeader("token") String token, @RequestBody String cartProducts) throws Exception {

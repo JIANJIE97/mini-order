@@ -1,5 +1,5 @@
 server:
-  port: 8888
+  port: 8080
 
 # 连接四大参数
 spring:
@@ -29,7 +29,7 @@ pagehelper:   #分页器配置
 
 
 wx-config: #自定义的属性和值
-  img_url_prefix: http://localhost:8888/img
+  img_url_prefix: http://localhost:${server.port}/img
   wx_app_id: wx53ee16a091421f41
   wx_app_secret: fcea20047c797a01c2b63280f8492c77
   wx_login_url: https://api.weixin.qq.com/sns/jscode2session?
