@@ -31,7 +31,7 @@ public class TokenServiceImpl implements TokenService {
     private String WX_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session?";
     private String TOKEN_SALT = "HHsTieBU377mJtKr";
     private long TOKEN_EXPIRE = 7200;*/
-    private static String WX_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session?";
+    private static String WX_LOGIN_URL;
     @Autowired
     private RestTemplate restTemplate;
     @Autowired
@@ -49,7 +49,7 @@ public class TokenServiceImpl implements TokenService {
      */
     @Override
     public void initParameter(String code) {
-        WX_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session?";
+        WX_LOGIN_URL = wxProperties.getWx_login_url();
 
         StringBuilder tempStr = new StringBuilder(wxProperties.getWx_login_url()).
                 append("appid=" + wxProperties.getWx_app_id()).

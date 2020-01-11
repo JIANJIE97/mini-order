@@ -34,7 +34,7 @@ public class ProductServiceImpl implements ProductService {
         List<Product> productByTypeId = productDao.findProductByTypeId(category_id);
         for (Product product : productByTypeId) {
             String main_img_url = product.getMain_img_url();
-            product.setMain_img_url("http://127.0.0.1:8888/img"+main_img_url);
+            product.setMain_img_url(wxProperties.getImg_url_prefix()+main_img_url);
         }
         return productByTypeId;
     }
