@@ -30,7 +30,7 @@
 
 # 6、微信小程序体验版
 
-![](https://github.com/JIANJIE97/mini-order/blob/master/QRcode.jpg)
+![](QRcode.jpg)
 
 
 
